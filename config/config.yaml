@@ -1,0 +1,8 @@
+data_dir_path: 'data/train/'
+pkl_dump_file_name: 'data/training/dump.pkl'
+image_size: 32
+img_rows: 32
+img_cols: 32
+img_channels: 3
+model_json_path: 'models/model.json'
+model_weight_path: 'models/model.h5'
