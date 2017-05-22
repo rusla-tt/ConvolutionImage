@@ -1,5 +1,5 @@
 app/079.jpg
-tmp/*
+tmp/tmp.jpg
 models.tar.gz
 models/*
 data/train/*
