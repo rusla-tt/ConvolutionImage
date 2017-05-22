@@ -4,3 +4,5 @@ models.tar.gz
 models/*
 data/train/*
 data/training/*
+.DS_Store
+data/.DS_Store
