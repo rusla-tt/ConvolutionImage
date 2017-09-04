@@ -145,3 +145,22 @@ class DeepLearning(object):
                 ratio = t[1]
                 code = t[0]
         return code_list[str(code)], ratio
+
+    def build_rnn(self, maxlen, vocab):
+        model = Sequential()
+        model.add(LSTM(128, input_shape=(maxlen, len(vocab))))
+        model.add(Dense(len(vocab)))
+        model.add(Activation('softmax'))
+        opt = RMSprop(lr=1e-2)
+        model.compile(loss='categorical_crossentropy', optimizer=opt)
+        return model
+
+    def create_model_rnn(self, iter_num):
+        #TODO: dataload
+        model = self.build_rnn()
+        for iter in range(1, iter_num):
+            model.fit(X, y, batch_size=128, nb_epoch=1)
+            model.save('model-{}.h5'.format(iter))
+
+    def prediction_rnn(self, keyword, iter_num):
+        pass

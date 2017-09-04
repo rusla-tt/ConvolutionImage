@@ -37,20 +37,6 @@ class Vacab:
 
     def wakachi_vocab(self, text):
         tagger = MeCab.Tagger(self.TAGGER)
-        result = tagger.parse(text)
-        ws = re.compile(" ")
-        words = [word.decode("utf-8") for word in ws.split(result)]
-        if words[-1] == u"\n":
-            words = words[:-1]
-        return words
+        dataset = np.ndarray(len(text), dtype=np.int32)
+        for i, word in text:
 
-    def word_counter(self, vocab):
-        dataset = np.ndarray(len(vocab), dtype=np.int32)
-        for i, word in enumerate(words):
-            if word not in vocablary:
-                self._setVocablary(word)
-            dataset[i] = self.vocablary[word]
-        return dataset
-
-    def _setVocablary(self, word):
-        self.vocablary[word] = len(self.vocablary)
