@@ -9,6 +9,7 @@ import configure
 import h5py
 import json
 import csv
+import random
 from keras.callbacks import EarlyStopping
 from keras.callbacks import LearningRateScheduler
 from keras.layers.convolutional import Convolution2D
@@ -24,6 +25,8 @@ from keras.optimizers import SGD
 from keras.utils import np_utils
 from ImagePkl import ImagePkl
 from keras.models import load_model
+from keras.layers import LSTM
+from keras.optimizers import RMSprop
 
 class Schedule(object):
     def __init__(self, init=0.01):
@@ -156,11 +159,81 @@ class DeepLearning(object):
         return model
 
     def create_model_rnn(self, iter_num):
-        #TODO: dataload
-        model = self.build_rnn()
-        for iter in range(1, iter_num):
-            model.fit(X, y, batch_size=128, nb_epoch=1)
-            model.save('model-{}.h5'.format(iter))
+        for k, text in texts:
+            t = self.m._get_category(k)
+            vocab = self.v.wakachi_vocab(t)
+            char_indecs = dict((c, i) for i, c in enumerate(vocab))
+            indecs_char = dict((i, c) for i, c in enumerate(vocab))
+            maxlen = 10
+            step = 3
+            sentences = []
+            next_char = []
+            for i in range(0, len(text) - maxlen, step):
+                sentences.append(vocab[i: i + maxlen])
+                next_char.append(vocab[i + maxlen])
+            X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
+            y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
+            for i, sentence in enumerate(sentences):
+                    for t, char in enumerate(sentence):
+                        X[i, t, char_indices[char]] = 1
+                        y[i, char_indices[next_chars[i]]] = 1
+            model = self.build_rnn()
+            collect_dir = 'data/rnn/' + k + '/'
+            for iter in range(1, iter_num):
+                model.fit(X, y, batch_size=128, nb_epoch=1)
+                model.save(collect_dir + 'model-{}.h5'.format(iter))
 
     def prediction_rnn(self, keyword, iter_num):
-        pass
+        t = self.m._get_category(keyword)
+        vocab = self.v.wakachi_vocab(t)
+        char_indecs = dict((c, i) for i, c in enumerate(vocab))
+        indecs_char = dict((c, i) for i, c in enumerate(vocab))
+        maxlen = 10
+        step = 3
+        sentences = []
+        next_char = []
+        for i in range(0, len(text) - maxlen, step):
+            sentences.append(text[i: i + maxlen])
+            next_chars.append(text[i + maxlen])
+        X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
+        y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
+        for i, sentence in enumerate(sentences):
+            for t, char in enumerate(sentence):
+                X[i, t, char_indices[char]] = 1
+                y[i, char_indices[next_chars[i]]] = 1
+        card = random.choice([1,2,3,4,5,6,7,8,9,10,11,12,13,14,
+            15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+            32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50])
+        model.load('data/rnn/'+ keyword + '/model-{}.h5'.fotmat(card))
+        for iteration in range(1, iter_num):
+            batch = np.random.randint(1000000, size=1)
+            model.fit(X[batch:batch+512], y[batch:batch+512], batch_size=128, nb_epoch=1)
+            model.reset_states()
+            generated = ''
+            start_index = random.randint(0, len(text) - maxlen - 1)
+            sentence = text[start_index: start_index + maxlen]
+            start = sentence
+            generated = ''
+            temp = np.random.uniform(0.0, 0.6, size=1)
+            try:
+                for i in range(200):
+                    x = np.zeros((1, maxlen, len(chars)))
+                    for t, char in enumerate(sentence):
+                        x[0, t, char_indices[char]] = 1.
+                        preds = model.predict(x, verbose=0)[0]
+                        next_index = sample(preds, temp)
+                        next_char = indices_char[next_index]
+                        generated += next_char
+                        sentence = sentence[1:] + next_char
+                        text = '{}{}'.format(start.encode('utf-8'),
+                                generated.encode('utf-8'))
+                        text = text.decode('utf-8')
+                        texts = text.split(u'\n')
+                        if len(texts) > 2:
+                            return texts[1]
+                        if len(texts) > 3:
+                            return texts[2]
+                        else:
+                            return texts
+            except Exception, e:
+                continue

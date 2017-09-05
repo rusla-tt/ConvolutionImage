@@ -3,13 +3,17 @@ import MeCab
 import os
 import re
 import ngram
+import configure
+
+class Vocab:
 
 
-class Vacab:
-
-    DIR_BASE_NAME = './data/base_text/'
-    TAGGER = ""
-    vocablary = {}
+    def __init__(self):
+        config = configure.Configure()
+        conf = config.load_config()
+        DIR_BASE_NAME = conf['vocab_dir_base_name']
+        TAGGER = conf['vocab_tagger']
+        vocablary = {}
 
     def load_file(self):
         """
@@ -31,12 +35,12 @@ class Vacab:
             texts.append(tuple_path)
         return texts
 
-    def ngram_vocab(self, gram_num=3, text):
+    def ngram_vocab(self, text, gram_num=3):
         gram = ngram.Ngram(N=gram_num)
-        return gram.ngrams(gram.pad(text))
+        gram = gram.ngrams(gram.pad(text))
+        return gram
 
     def wakachi_vocab(self, text):
         tagger = MeCab.Tagger(self.TAGGER)
-        dataset = np.ndarray(len(text), dtype=np.int32)
-        for i, word in text:
-
+        wordlist = tagger.parse(text)
+        return wordlist
