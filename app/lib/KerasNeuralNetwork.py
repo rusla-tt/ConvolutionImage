@@ -1,12 +1,9 @@
 # -*- encoding: utf-8 -*-
-import keras
 import matplotlib.pyplot as plt
 plt.style.use("ggplot")
 import numpy as np
-import pandas as pd
 import cv2 as cv
 import configure
-import h5py
 import json
 import csv
 import random
@@ -18,32 +15,33 @@ from keras.layers.core import Activation
 from keras.layers.core import Dense
 from keras.layers.core import Dropout
 from keras.layers.core import Flatten
-from keras.layers.normalization import BatchNormalization
 from keras.models import Sequential, model_from_json
-from keras.optimizers import Adam
 from keras.optimizers import SGD
-from keras.utils import np_utils
 from ImagePkl import ImagePkl
-from keras.models import load_model
 from keras.layers import LSTM
 from keras.optimizers import RMSprop
+from keras.models import load_model
+import Marcov
+
 
 class Schedule(object):
     def __init__(self, init=0.01):
         self.init = init
 
     def __call__(self, epoch):
-        lr =self.init
+        lr = self.init
         for i in xrange(1, epoch+1):
-            if i%5==0:
+            if i % 5 == 0:
                 lr *= 0.5
         return lr
+
 
 class DeepLearning(object):
     def __init__(self):
         config = configure.Configure()
         conf = config.load_config()
         self._model = None
+        self.m = Marcov.Marcov()
         self.img_rows = conf['img_rows']
         self.img_cols = conf['img_cols']
         self.img_channels = conf['img_channels']
@@ -60,8 +58,8 @@ class DeepLearning(object):
     def build(self, num_classes=2):
         model = Sequential()
         model.add(Convolution2D(96, (3, 3), padding='same',
-                input_shape=(self.img_channels, self.img_rows,
-                    self.img_cols)))
+                                input_shape=(self.img_channels, self.img_rows,
+                                             self.img_cols)))
         model.add(Activation('relu'))
         model.add(Convolution2D(128, (3, 3), padding='same'))
         model.add(Activation('relu'))
@@ -91,36 +89,36 @@ class DeepLearning(object):
         model = self.build(n_class)
         init_learning_rate = 1e-2
         opt = SGD(lr=init_learning_rate, decay=0.0, momentum=0.9,
-                nesterov=False)
+                  nesterov=False)
         model.compile(loss='sparse_categorical_crossentropy',
-                optimizer=opt, metrics=["acc"])
+                      optimizer=opt, metrics=["acc"])
         early_stopping = EarlyStopping(monitor='val_loss',
-                patience=3, verbose=0, mode='auto')
+                                       patience=3, verbose=0, mode='auto')
         lrs = LearningRateScheduler(self.get_schedule_func(init_learning_rate))
         model.fit(x, y,
-                batch_size=128,
-                epochs=200, validation_split=0.1,
-                verbose=1,
-                callbacks=[early_stopping, lrs])
+                  batch_size=128,
+                  epochs=200, validation_split=0.1,
+                  verbose=1,
+                  callbacks=[early_stopping, lrs])
         model.save(self._model_weight_path)
         open(self._model_json_path, 'wb').write(model.to_json())
         csv.writer(open('./models/label.csv', 'wb')).writerow(list(set(y)))
 
     def _load_model(self):
-        #dataset = ImagePkl()
-        #data, target = dataset.load_dataset()
-        #n_class = len(set(target))
-        #perm = np.random.permutation(len(traget))
-        #x = data[perm]
-        #y = target[perm]
+        # dataset = ImagePkl()
+        # data, target = dataset.load_dataset()
+        # n_class = len(set(target))
+        # perm = np.random.permutation(len(traget))
+        # x = data[perm]
+        # y = target[perm]
         model = model_from_json(
-                open(self._model_json_path).read())
+            open(self._model_json_path).read())
         model.load_weights(self._model_weight_path)
         init_learning_rate = 1e-2
         opt = SGD(lr=init_learning_rate, decay=0.0, momentum=0.9,
-                nesterov=False)
+                  nesterov=False)
         model.compile(loss='sparse_categorical_crossentropy',
-                optimizer=opt, metrics=["acc"])
+                      optimizer=opt, metrics=["acc"])
         return model
 
     def prediction(self):
@@ -159,20 +157,21 @@ class DeepLearning(object):
         return model
 
     def create_model_rnn(self, iter_num):
+        texts = self.m.texts
         for k, text in texts:
             t = self.m._get_category(k)
             vocab = self.v.wakachi_vocab(t)
-            char_indecs = dict((c, i) for i, c in enumerate(vocab))
-            indecs_char = dict((i, c) for i, c in enumerate(vocab))
+            char_indices = dict((c, i) for i, c in enumerate(vocab))
+            indices_char = dict((i, c) for i, c in enumerate(vocab))
             maxlen = 10
             step = 3
             sentences = []
-            next_char = []
+            next_chars = []
             for i in range(0, len(text) - maxlen, step):
                 sentences.append(vocab[i: i + maxlen])
-                next_char.append(vocab[i + maxlen])
-            X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
-            y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
+                next_chars.append(vocab[i + maxlen])
+            X = np.zeros((len(sentences), maxlen, len(vocab)), dtype=np.bool)
+            y = np.zeros((len(sentences), len(vocab)), dtype=np.bool)
             for i, sentence in enumerate(sentences):
                     for t, char in enumerate(sentence):
                         X[i, t, char_indices[char]] = 1
@@ -183,50 +182,61 @@ class DeepLearning(object):
                 model.fit(X, y, batch_size=128, nb_epoch=1)
                 model.save(collect_dir + 'model-{}.h5'.format(iter))
 
+    def sample(self, preds, temperature=1.0):
+        preds = np.asarray(preds).astype('float64')
+        preds = np.log(preds+0.0001) / temperature
+        exp_preds = np.exp(preds)
+        preds = exp_preds / np.sum(exp_preds)
+        probas = np.random.multinomial(1, preds, 1)
+        return np.argmax(probas)
+
     def prediction_rnn(self, keyword, iter_num):
         t = self.m._get_category(keyword)
         vocab = self.v.wakachi_vocab(t)
-        char_indecs = dict((c, i) for i, c in enumerate(vocab))
-        indecs_char = dict((c, i) for i, c in enumerate(vocab))
+        char_indices = dict((c, i) for i, c in enumerate(vocab))
+        indices_char = dict((c, i) for i, c in enumerate(vocab))
         maxlen = 10
         step = 3
         sentences = []
-        next_char = []
-        for i in range(0, len(text) - maxlen, step):
-            sentences.append(text[i: i + maxlen])
-            next_chars.append(text[i + maxlen])
-        X = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
-        y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
+        next_chars = []
+        for i in range(0, len(t) - maxlen, step):
+            sentences.append(vocab[i: i + maxlen])
+            next_chars.append(vocab[i + maxlen])
+        X = np.zeros((len(sentences), maxlen, len(vocab)), dtype=np.bool)
+        y = np.zeros((len(sentences), len(vocab)), dtype=np.bool)
         for i, sentence in enumerate(sentences):
             for t, char in enumerate(sentence):
                 X[i, t, char_indices[char]] = 1
                 y[i, char_indices[next_chars[i]]] = 1
-        card = random.choice([1,2,3,4,5,6,7,8,9,10,11,12,13,14,
-            15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
-            32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50])
-        model.load('data/rnn/'+ keyword + '/model-{}.h5'.fotmat(card))
+        card = random.choice(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+             15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+             32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+             49, 50])
+        model = load_model('data/rnn/' + keyword + '/model-{}.h5'.fotmat(card))
         for iteration in range(1, iter_num):
             batch = np.random.randint(1000000, size=1)
-            model.fit(X[batch:batch+512], y[batch:batch+512], batch_size=128, nb_epoch=1)
+            model.fit(X[batch:batch+512],
+                      y[batch:batch+512], batch_size=128, nb_epoch=1)
             model.reset_states()
             generated = ''
-            start_index = random.randint(0, len(text) - maxlen - 1)
-            sentence = text[start_index: start_index + maxlen]
+            start_index = random.randint(0, len(t) - maxlen - 1)
+            sentence = t[start_index: start_index + maxlen]
             start = sentence
             generated = ''
             temp = np.random.uniform(0.0, 0.6, size=1)
             try:
                 for i in range(200):
-                    x = np.zeros((1, maxlen, len(chars)))
+                    x = np.zeros((1, maxlen, len(vocab)))
                     for t, char in enumerate(sentence):
                         x[0, t, char_indices[char]] = 1.
                         preds = model.predict(x, verbose=0)[0]
-                        next_index = sample(preds, temp)
+                        next_index = self.sample(preds, temp)
                         next_char = indices_char[next_index]
                         generated += next_char
                         sentence = sentence[1:] + next_char
                         text = '{}{}'.format(start.encode('utf-8'),
-                                generated.encode('utf-8'))
+                                             generated.encode('utf-8'))
                         text = text.decode('utf-8')
                         texts = text.split(u'\n')
                         if len(texts) > 2:

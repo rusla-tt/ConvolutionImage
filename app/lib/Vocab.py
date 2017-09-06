@@ -1,19 +1,18 @@
 # -*- encoding: utf-8 -*-
 import MeCab
 import os
-import re
 import ngram
 import configure
 
-class Vocab:
 
+class Vocab:
 
     def __init__(self):
         config = configure.Configure()
         conf = config.load_config()
-        DIR_BASE_NAME = conf['vocab_dir_base_name']
-        TAGGER = conf['vocab_tagger']
-        vocablary = {}
+        self.DIR_BASE_NAME = conf['vocab_dir_base_name']
+        self.TAGGER = conf['vocab_tagger']
+        self.vocablary = {}
 
     def load_file(self):
         """
