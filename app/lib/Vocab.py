@@ -3,6 +3,7 @@ import MeCab
 import os
 import ngram
 import configure
+import csv
 
 
 class Vocab:
@@ -13,6 +14,8 @@ class Vocab:
         self.DIR_BASE_NAME = conf['vocab_dir_base_name']
         self.TAGGER = conf['vocab_tagger']
         self.vocablary = {}
+        self.f = open('./data/map/map.csv', 'wb')
+        self.wt = csv.writer(self.f)
 
     def load_file(self):
         """
@@ -21,17 +24,21 @@ class Vocab:
         """
         texts = []
         dir_list = os.listdir(self.DIR_BASE_NAME)
+        count = 0
         for l in dir_list:
             tuple_path = None
             paths = []
             f_list = os.listdir(self.DIR_BASE_NAME+l)
             for f_name in f_list:
                 path = None
-                path = open(self.DIR_BASE_NAME+l+f_name, 'r')
+                path = open(self.DIR_BASE_NAME+l+"/"+f_name, 'r')
                 path = path.read()
                 paths.append(path)
-            tuple_path = (l, paths)
+            tuple_path = (str(count), paths)
             texts.append(tuple_path)
+            self.wt.writerow([str(count), l])
+            count = count + 1
+        self.f.close()
         return texts
 
     def ngram_vocab(self, text, gram_num=3):

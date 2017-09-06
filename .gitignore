@@ -1,2 +1,3 @@
 data/vocab/*
 app/test.py
+app/lib/*.pyc

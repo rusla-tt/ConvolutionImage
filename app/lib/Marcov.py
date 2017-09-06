@@ -3,6 +3,7 @@
 import Vocab
 import re
 import random
+import csv
 
 
 class Marcov:
@@ -14,18 +15,32 @@ class Marcov:
         self.texts = self.v.load_file()
 
     def get_category(self, key):
+        f = open("data/map/map.csv", "rb")
+        reader = csv.reader(f)
+        number = None
+        s_text = None
+        print key
+        print len(key)
+        for r in reader:
+            print r[1]
+            print len(r[1])
+            if key == r[1]:
+                number = r[0]
         for k, text in self.texts:
-            if k == key:
+            if number == k:
                 s_text = " ".join(text)
                 return s_text
+        if s_text is None:
+            raise Exception
 
-    def marcov_main(self, key, ngram_mode=False, word_length=90):
-        text = self.get_category(key)
+    def marcov_main(self, keys, ngram_mode=False, word_length=90):
+        text = self.get_category(keys)
         vocab = None
         if ngram_mode:
             vocab = self.v.ngram_vocab(text)
         else:
             vocab = self.v.wakachi_vocab(text)
+            print text
         marcov = {}
         tmp_word1 = ""
         tmp_word2 = ""

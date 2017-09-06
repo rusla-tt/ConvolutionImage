@@ -7,4 +7,4 @@ img_channels: 3
 model_json_path: 'models/model.json'
 model_weight_path: 'models/model.h5'
 vocab_dir_base_name: './data/vocab/'
-vocab_tagger: '-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd'
+vocab_tagger: ' -d /usr/local/lib/mecab/dic/mecab-ipadic-neologd'
