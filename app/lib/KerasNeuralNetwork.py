@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 import matplotlib.pyplot as plt
+import os
 plt.style.use("ggplot")
 import numpy as np
 import cv2 as cv
@@ -177,7 +178,9 @@ class DeepLearning(object):
                         X[i, t, char_indices[char]] = 1
                         y[i, char_indices[next_chars[i]]] = 1
             model = self.build_rnn()
-            collect_dir = 'data/rnn/' + k + '/'
+            collect_dir = 'data/rnn/{}/'.format(k)
+            if not os.path.exists(collect_dir):
+                os.mkdir(collect_dir)
             for iter in range(1, iter_num):
                 model.fit(X, y, batch_size=128, nb_epoch=1)
                 model.save(collect_dir + 'model-{}.h5'.format(iter))
