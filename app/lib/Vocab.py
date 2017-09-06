@@ -48,5 +48,14 @@ class Vocab:
 
     def wakachi_vocab(self, text):
         tagger = MeCab.Tagger(self.TAGGER)
-        wordlist = tagger.parse(text)
-        return wordlist
+        wordlist = tagger.parseToNode(text)
+        words = self._get_surfaces(wordlist)
+        return words
+
+    def _get_surfaces(self, node):
+        words = []
+        while node:
+            word = node.surface
+            words.append(word)
+            node = node.next
+        return words

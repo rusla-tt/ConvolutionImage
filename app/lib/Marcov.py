@@ -4,6 +4,7 @@ import Vocab
 import re
 import random
 import csv
+import unicodedata
 
 
 class Marcov:
@@ -19,12 +20,12 @@ class Marcov:
         reader = csv.reader(f)
         number = None
         s_text = None
-        print key
-        print len(key)
+        key_convert = unicodedata.normalize('NFC',
+                                            key.decode('utf-8')).encode('utf-8')
         for r in reader:
-            print r[1]
-            print len(r[1])
-            if key == r[1]:
+            r_1_convert = unicodedata.normalize('NFC',
+                                                r[1].decode('utf-8')).encode('utf-8')
+            if key_convert == r_1_convert:
                 number = r[0]
         for k, text in self.texts:
             if number == k:
@@ -40,7 +41,6 @@ class Marcov:
             vocab = self.v.ngram_vocab(text)
         else:
             vocab = self.v.wakachi_vocab(text)
-            print text
         marcov = {}
         tmp_word1 = ""
         tmp_word2 = ""
@@ -74,6 +74,6 @@ class Marcov:
             count += 1
             sentence = sentence.split(" ", 1)[0]
             ng_key = re.compile("[!-/:-@[-`{-~]")
-            sentences = ng_key.sub(sentence)
-        words = re.sub(re.comile("[!-~]"), "", sentences)
+            sentences = ng_key.sub(" ", sentence)
+        words = re.sub(re.compile("[!-~]"), "", sentences)
         return words
