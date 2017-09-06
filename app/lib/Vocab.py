@@ -34,7 +34,7 @@ class Vocab:
                 path = open(self.DIR_BASE_NAME+l+"/"+f_name, 'r')
                 path = path.read()
                 paths.append(path)
-            tuple_path = (str(count), paths)
+            tuple_path = (l, str(count), paths)
             texts.append(tuple_path)
             self.wt.writerow([str(count), l])
             count = count + 1

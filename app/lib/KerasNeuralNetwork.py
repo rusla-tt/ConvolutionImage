@@ -23,6 +23,7 @@ from keras.layers import LSTM
 from keras.optimizers import RMSprop
 from keras.models import load_model
 import Marcov
+import Vocab
 
 
 class Schedule(object):
@@ -43,6 +44,7 @@ class DeepLearning(object):
         conf = config.load_config()
         self._model = None
         self.m = Marcov.Marcov()
+        self.v = Vocab.Vocab()
         self.img_rows = conf['img_rows']
         self.img_cols = conf['img_cols']
         self.img_channels = conf['img_channels']
@@ -159,9 +161,11 @@ class DeepLearning(object):
 
     def create_model_rnn(self, iter_num):
         texts = self.m.texts
-        for k, text in texts:
-            t = self.m._get_category(k)
-            vocab = self.v.wakachi_vocab(t)
+        for k, num, text in texts:
+            for t in text:
+                s_text = " ".join(t)
+            # t = self.m.get_category(k)
+            vocab = self.v.wakachi_vocab(s_text)
             char_indices = dict((c, i) for i, c in enumerate(vocab))
             indices_char = dict((i, c) for i, c in enumerate(vocab))
             maxlen = 10
@@ -177,12 +181,12 @@ class DeepLearning(object):
                     for t, char in enumerate(sentence):
                         X[i, t, char_indices[char]] = 1
                         y[i, char_indices[next_chars[i]]] = 1
-            model = self.build_rnn()
+            model = self.build_rnn(maxlen, vocab)
             collect_dir = 'data/rnn/{}/'.format(k)
             if not os.path.exists(collect_dir):
                 os.mkdir(collect_dir)
             for iter in range(1, iter_num):
-                model.fit(X, y, batch_size=128, nb_epoch=1)
+                model.fit(X, y, batch_size=128, epochs=1, verbose=0)
                 model.save(collect_dir + 'model-{}.h5'.format(iter))
 
     def sample(self, preds, temperature=1.0):
@@ -194,7 +198,7 @@ class DeepLearning(object):
         return np.argmax(probas)
 
     def prediction_rnn(self, keyword, iter_num):
-        t = self.m._get_category(keyword)
+        t = self.m.get_category(keyword)
         vocab = self.v.wakachi_vocab(t)
         char_indices = dict((c, i) for i, c in enumerate(vocab))
         indices_char = dict((c, i) for i, c in enumerate(vocab))

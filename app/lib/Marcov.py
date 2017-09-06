@@ -16,7 +16,7 @@ class Marcov:
         self.texts = self.v.load_file()
 
     def get_category(self, key):
-        f = open("data/map/map.csv", "rb")
+        f = open("data/map/map.csv", "r")
         reader = csv.reader(f)
         number = None
         s_text = None
@@ -27,11 +27,14 @@ class Marcov:
                                                 r[1].decode('utf-8')).encode('utf-8')
             if key_convert == r_1_convert:
                 number = r[0]
-        for k, text in self.texts:
-            if number == k:
+        for k, num, text in self.texts:
+            if number == num:
                 s_text = " ".join(text)
+                f.close()
+                reader = None
                 return s_text
         if s_text is None:
+            f.close()
             raise Exception
 
     def marcov_main(self, keys, ngram_mode=False, word_length=90):
