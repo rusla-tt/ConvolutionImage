@@ -11,6 +11,7 @@ kemono = KNN.DeepLearning()
 imagepkl = IP.ImagePkl()
 sentence = marcov.Marcov()
 
+
 @app.route('/search', methods=['POST'])
 def search():
     if request.method == 'POST':
@@ -18,18 +19,18 @@ def search():
         img.save('./tmp/tmp.jpg')
         kemono_name = kemono.prediction()
         marcov_text = sentence.marcov_main(kemono_name[0], False, 90)
-        rnn_text = kemono.prediction_rnn(kemono_name[0], 300)
+        rnn_text = kemono.prediction_rnn(kemono_name[0], 300, 50)
         result = {
-                "name": kemono_name[0],
-                "ratio": str(kemono_name[1]),
-                "marcov_text": marcov_text,
-                "rnn_text": rnn_text
-                }
+            "name": kemono_name[0],
+            "ratio": str(kemono_name[1]),
+            "marcov_text": marcov_text,
+            "rnn_text": rnn_text
+        }
         return jsonify(ResultSet=result)
     else:
         return jsonify(ResultSet={
-            "status_code":"405",
-            "message":"method not allowed"
+            "status_code": "405",
+            "message": "method not allowed"
             })
 
 @app.route('/model', methods=['CREATE'])

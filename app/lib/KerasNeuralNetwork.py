@@ -24,6 +24,7 @@ from keras.optimizers import RMSprop
 from keras.models import load_model
 import Marcov
 import Vocab
+import unicodedata
 
 
 class Schedule(object):
@@ -45,6 +46,7 @@ class DeepLearning(object):
         self._model = None
         self.m = Marcov.Marcov()
         self.v = Vocab.Vocab()
+        self.DIR_BASE_NAME = conf['vocab_dir_base_name']
         self.img_rows = conf['img_rows']
         self.img_cols = conf['img_cols']
         self.img_channels = conf['img_channels']
@@ -155,39 +157,58 @@ class DeepLearning(object):
         model.add(LSTM(128, input_shape=(maxlen, len(vocab))))
         model.add(Dense(len(vocab)))
         model.add(Activation('softmax'))
-        opt = RMSprop(lr=1e-2)
+        opt = RMSprop(lr=0.01)
         model.compile(loss='categorical_crossentropy', optimizer=opt)
         return model
 
     def create_model_rnn(self, iter_num):
-        texts = self.m.texts
+        texts = []
+        dir_list = os.listdir(self.DIR_BASE_NAME)
+        count = 0
+        for l in dir_list:
+            tuple_path = None
+            paths = []
+            f_list = os.listdir(self.DIR_BASE_NAME+l)
+            for f_name in f_list:
+                path = None
+                path = open(self.DIR_BASE_NAME+l+"/"+f_name, 'r')
+                path = path.read()
+                paths.append(path)
+            tuple_path = (l, str(count), paths)
+            texts.append(tuple_path)
+            count = count + 1
         for k, num, text in texts:
-            for t in text:
-                s_text = " ".join(t)
+            s_text = " ".join(text)
             # t = self.m.get_category(k)
             vocab = self.v.wakachi_vocab(s_text)
-            char_indices = dict((c, i) for i, c in enumerate(vocab))
-            indices_char = dict((i, c) for i, c in enumerate(vocab))
+            words = sorted(list(set(vocab)))
+            char_indices = dict((c, i) for i, c in enumerate(words))
+            indices_char = dict((i, c) for i, c in enumerate(words))
             maxlen = 10
             step = 3
             sentences = []
             next_chars = []
-            for i in range(0, len(text) - maxlen, step):
+            for i in range(0, len(vocab) - maxlen, step):
                 sentences.append(vocab[i: i + maxlen])
                 next_chars.append(vocab[i + maxlen])
-            X = np.zeros((len(sentences), maxlen, len(vocab)), dtype=np.bool)
-            y = np.zeros((len(sentences), len(vocab)), dtype=np.bool)
+            X = np.zeros((len(sentences), maxlen, len(words)), dtype=np.bool)
+            y = np.zeros((len(sentences), len(words)), dtype=np.bool)
             for i, sentence in enumerate(sentences):
-                    for t, char in enumerate(sentence):
-                        X[i, t, char_indices[char]] = 1
-                        y[i, char_indices[next_chars[i]]] = 1
-            model = self.build_rnn(maxlen, vocab)
+                for t, char in enumerate(sentence):
+                    X[i, t, char_indices[char]] = 1
+                y[i, char_indices[next_chars[i]]] = 1
+            model = self.build_rnn(maxlen, words)
             collect_dir = 'data/rnn/{}/'.format(k)
             if not os.path.exists(collect_dir):
                 os.mkdir(collect_dir)
-            for iter in range(1, iter_num):
-                model.fit(X, y, batch_size=128, epochs=1, verbose=0)
-                model.save(collect_dir + 'model-{}.h5'.format(iter))
+            if len(s_text) != 0:
+                print collect_dir
+                try:
+                    for iter in range(0, iter_num):
+                        model.fit(X, y, batch_size=128, epochs=10, verbose=0)
+                        model.save(collect_dir + 'model-{}.h5'.format(str(iter)))
+                except:
+                    continue
 
     def sample(self, preds, temperature=1.0):
         preds = np.asarray(preds).astype('float64')
@@ -197,60 +218,68 @@ class DeepLearning(object):
         probas = np.random.multinomial(1, preds, 1)
         return np.argmax(probas)
 
-    def prediction_rnn(self, keyword, iter_num):
-        t = self.m.get_category(keyword)
+    def prediction_rnn(self, keyword, iter_num, card_num=50):
+        texts = self.m.texts
+        t = None
+        keyword_conv = unicodedata.normalize(
+            'NFC', keyword.decode('utf-8')).encode('utf-8')
+        for k, num, text in texts:
+            k_conv = unicodedata.normalize(
+                'NFC', k.decode('utf-8')).encode('utf-8')
+            if k_conv == keyword_conv:
+                t = " ".join(text)
+        if t is None:
+            raise Exception
         vocab = self.v.wakachi_vocab(t)
-        char_indices = dict((c, i) for i, c in enumerate(vocab))
-        indices_char = dict((c, i) for i, c in enumerate(vocab))
+        words = sorted(list(set(vocab)))
+        char_indices = dict((c, i) for i, c in enumerate(words))
+        indices_char = dict((i, c) for i, c in enumerate(words))
         maxlen = 10
         step = 3
         sentences = []
         next_chars = []
-        for i in range(0, len(t) - maxlen, step):
+        for i in range(0, len(vocab) - maxlen, step):
             sentences.append(vocab[i: i + maxlen])
             next_chars.append(vocab[i + maxlen])
-        X = np.zeros((len(sentences), maxlen, len(vocab)), dtype=np.bool)
-        y = np.zeros((len(sentences), len(vocab)), dtype=np.bool)
+        X = np.zeros((len(sentences), maxlen, len(words)), dtype=np.bool)
+        y = np.zeros((len(sentences), len(words)), dtype=np.bool)
         for i, sentence in enumerate(sentences):
             for t, char in enumerate(sentence):
                 X[i, t, char_indices[char]] = 1
-                y[i, char_indices[next_chars[i]]] = 1
-        card = random.choice(
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-             15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-             32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
-             49, 50])
-        model = load_model('data/rnn/' + keyword + '/model-{}.h5'.fotmat(card))
-        for iteration in range(1, iter_num):
-            batch = np.random.randint(1000000, size=1)
-            model.fit(X[batch:batch+512],
-                      y[batch:batch+512], batch_size=128, nb_epoch=1)
+            y[i, char_indices[next_chars[i]]] = 1
+        card_number = []
+        for i in range(0, card_num):
+            card_number.append(i)
+        card = random.choice(card_number)
+        model = load_model(
+            'data/rnn/' + keyword_conv + '/model-{}.h5'.format(card))
+        for iteration in range(0, iter_num):
+            batch = np.random.randint(100000, size=1)[0]
+            model.fit(X[batch: batch+512],
+                      y[batch: batch+512],
+                      batch_size=128, epochs=1, verbose=0)
             model.reset_states()
             generated = ''
-            start_index = random.randint(0, len(t) - maxlen - 1)
-            sentence = t[start_index: start_index + maxlen]
+            start_index = random.randint(0, len(words) - maxlen - 1)
+            sentence = vocab[start_index: start_index + maxlen]
             start = sentence
             generated = ''
             temp = np.random.uniform(0.0, 0.6, size=1)
             try:
-                for i in range(200):
-                    x = np.zeros((1, maxlen, len(vocab)))
+                texts = "".join(start)
+                for i in range(100):
+                    x = np.zeros((1, maxlen, len(words)))
                     for t, char in enumerate(sentence):
                         x[0, t, char_indices[char]] = 1.
-                        preds = model.predict(x, verbose=0)[0]
-                        next_index = self.sample(preds, temp)
-                        next_char = indices_char[next_index]
-                        generated += next_char
-                        sentence = sentence[1:] + next_char
-                        text = '{}{}'.format(start.encode('utf-8'),
-                                             generated.encode('utf-8'))
-                        text = text.decode('utf-8')
-                        texts = text.split(u'\n')
-                        if len(texts) > 2:
-                            return texts[1]
-                        if len(texts) > 3:
-                            return texts[2]
-                        else:
-                            return texts
+                    preds = model.predict(x, verbose=0)[0]
+                    next_index = self.sample(preds, temp)
+                    next_char = indices_char[next_index]
+                    generated += next_char
+                    sentence = " ".join(sentence[1:])
+                    sentence = sentence + " " + next_char
+                    sentence = sentence.split(" ")
+                    texts = texts + next_char
+                return texts
             except Exception, e:
+                print e
                 continue
