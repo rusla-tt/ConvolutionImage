@@ -18,8 +18,16 @@ def search():
         img = request.files['img']
         img.save('./tmp/tmp.jpg')
         kemono_name = kemono.prediction()
-        marcov_text = sentence.marcov_main(kemono_name[0], False, 90)
-        rnn_text = kemono.prediction_rnn(kemono_name[0], 300, 50)
+        marcov_text = ""
+        rnn_text = ""
+        try:
+            marcov_text = sentence.marcov_main(kemono_name[0], False, 90)
+        except:
+            marcov_text = "マルコフ連鎖用の文章生成に失敗しました。"
+        try:
+            rnn_text = kemono.prediction_rnn(kemono_name[0], 300, 50)
+        except:
+            rnn_text = "LSTM用の文章生成に失敗しました。"
         result = {
             "name": kemono_name[0],
             "ratio": str(kemono_name[1]),
@@ -33,18 +41,20 @@ def search():
             "message": "method not allowed"
             })
 
+
 @app.route('/model', methods=['CREATE'])
 def create():
     if request.method == 'CREATE':
         kemono.create_model()
         return jsonify(ResultSet={
-            "status_code":"200",
-            "message":"create model"
+            "status_code": "200",
+            "message": "create model"
             })
     else:
         return jsonify(ResultSet={
-            "status_code":"405",
-            "message":"method not allowed"})
+            "status_code": "405",
+            "message": "method not allowed"})
+
 
 @app.route('/rnn/model', methods=['CREATE'])
 def create_rnn():
@@ -66,13 +76,13 @@ def pkl():
     if request.method == 'CREATE':
         imagepkl.create_data_target()
         return jsonify(ResultSet={
-            "status_code":"200",
-            "message":"create pickle file"
+            "status_code": "200",
+            "message": "create pickle file"
             })
     else:
         return jsonify(ResultSet={
-            "status_code":"405",
-            "message":"method not allowed"
+            "status_code": "405",
+            "message": "method not allowed"
             })
 
 if __name__ == "__main__":
